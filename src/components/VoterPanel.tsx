@@ -10,6 +10,8 @@ import {
   useToast,
   Progress,
   Divider,
+  Alert,
+  AlertIcon,
 } from '@chakra-ui/react';
 import { useWeb3 } from '../contexts/Web3Context';
 
@@ -125,7 +127,7 @@ const VoterPanel: React.FC = () => {
     return (votes / total) * 100;
   };
 
-  // Add function to check if poll is truly active
+  // Function to check if poll is truly active
   const isPollActive = (poll: Poll) => {
     const currentTime = Math.floor(Date.now() / 1000);
     return poll.isActive && 
@@ -133,7 +135,13 @@ const VoterPanel: React.FC = () => {
            currentTime <= poll.endTime;
   };
 
-  // Add function to get poll status text
+  // Function to check if poll is ended (either manually or by time)
+  const isPollEnded = (poll: Poll) => {
+    const currentTime = Math.floor(Date.now() / 1000);
+    return !poll.isActive || currentTime > poll.endTime;
+  };
+
+  // Function to get poll status text
   const getPollStatus = (poll: Poll) => {
     const currentTime = Math.floor(Date.now() / 1000);
     if (!poll.isActive) return "Ended";
@@ -215,39 +223,51 @@ const VoterPanel: React.FC = () => {
             </Box>
           ) : (
             <Box mt={4}>
-              <Text fontWeight="bold" mb={2}>
-                {poll.hasVoted ? 'You have voted in this poll' : 'Poll Results'}
-              </Text>
-              <VStack align="stretch" spacing={2}>
-                {poll.options.map((option, index) => {
-                  const votes = poll.results?.[index] || 0;
-                  const total = getTotalVotes(poll.results);
-                  const percentage = getVotePercentage(votes, total);
+              {poll.hasVoted && !isPollEnded(poll) ? (
+                <Alert status="success" borderRadius="md">
+                  <AlertIcon />
+                  You have voted in this poll. Results will be available after the poll ends.
+                </Alert>
+              ) : isPollEnded(poll) ? (
+                // Only show results if poll has ended
+                <>
+                  <Text fontWeight="bold" mb={2}>Poll Results</Text>
+                  <VStack align="stretch" spacing={2}>
+                    {poll.options.map((option, index) => {
+                      const votes = poll.results?.[index] || 0;
+                      const total = getTotalVotes(poll.results);
+                      const percentage = getVotePercentage(votes, total);
 
-                  return (
-                    <Box key={index}>
-                      <Text fontSize="sm" mb={1}>
-                        {option} - {votes} votes ({percentage.toFixed(1)}%)
-                      </Text>
-                      <Progress
-                        value={percentage}
-                        size="sm"
-                        colorScheme="blue"
-                        borderRadius="full"
-                      />
-                    </Box>
-                  );
-                })}
-              </VStack>
-              <Text fontSize="sm" mt={2} color="gray.600">
-                Total votes: {getTotalVotes(poll.results)}
-              </Text>
-              {!isPollActive(poll) && getPollStatus(poll) !== "Not Started" && (
-                <Box mt={4} p={3} bg="gray.100" borderRadius="md">
-                  <Text fontWeight="bold" color="green.600">
-                    Final Result: {getWinner(poll.options, poll.results)}
+                      return (
+                        <Box key={index}>
+                          <Text fontSize="sm" mb={1}>
+                            {option} - {votes} votes ({percentage.toFixed(1)}%)
+                          </Text>
+                          <Progress
+                            value={percentage}
+                            size="sm"
+                            colorScheme="blue"
+                            borderRadius="full"
+                          />
+                        </Box>
+                      );
+                    })}
+                  </VStack>
+                  <Text fontSize="sm" mt={2} color="gray.600">
+                    Total votes: {getTotalVotes(poll.results)}
                   </Text>
-                </Box>
+                  <Box mt={4} p={3} bg="gray.100" borderRadius="md">
+                    <Text fontWeight="bold" color="green.600">
+                      Final Result: {getWinner(poll.options, poll.results)}
+                    </Text>
+                  </Box>
+                </>
+              ) : (
+                // Poll is active but user can't vote
+                <Alert status="info" borderRadius="md">
+                  <AlertIcon />
+                  You cannot vote in this poll. Results will be available after the poll ends.
+                </Alert>
               )}
             </Box>
           )}

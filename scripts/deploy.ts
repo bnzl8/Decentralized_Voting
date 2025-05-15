@@ -1,4 +1,6 @@
 import { ethers } from "hardhat";
+import * as fs from 'fs';
+import * as path from 'path';
 
 async function main() {
   console.log("Deploying contracts...");
@@ -22,6 +24,16 @@ async function main() {
   const tx = await whitelist.addToWhitelist(deployer.address);
   await tx.wait();
   console.log("Deployer added to whitelist:", deployer.address);
+
+  // Update the contracts.ts file with new addresses
+  const configPath = path.join(__dirname, '../src/config/contracts.ts');
+  const configContent = `export const CONTRACT_ADDRESSES = {
+  whitelist: '${whitelistAddress}',
+  voting: '${votingAddress}'
+};`;
+
+  fs.writeFileSync(configPath, configContent);
+  console.log("Updated contract addresses in src/config/contracts.ts");
 }
 
 main()

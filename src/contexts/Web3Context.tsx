@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import Web3Modal from 'web3modal';
 import WhitelistArtifact from '../contracts/Whitelist.json';
 import VotingArtifact from '../contracts/Voting.json';
+import { CONTRACT_ADDRESSES } from '../config/contracts';
 
 interface Web3ContextType {
   account: string | null;
@@ -56,13 +57,13 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Connected address:', address);
 
       // Initialize contracts
-      const whitelistAddress = process.env.REACT_APP_WHITELIST_ADDRESS;
-      const votingAddress = process.env.REACT_APP_VOTING_ADDRESS;
+      const whitelistAddress = CONTRACT_ADDRESSES.whitelist;
+      const votingAddress = CONTRACT_ADDRESSES.voting;
 
       console.log('Contract addresses:', { whitelistAddress, votingAddress });
 
       if (!whitelistAddress || !votingAddress) {
-        throw new Error('Contract addresses not found in environment variables');
+        throw new Error('Contract addresses not found in configuration');
       }
 
       // Verify contract addresses are valid
@@ -132,16 +133,22 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Failed to check whitelist status: ' + (error instanceof Error ? error.message : String(error)));
       }
 
-      // Check if user is admin (deployer)
-      const isAdmin = address.toLowerCase() === '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
-      console.log('Is admin:', isAdmin);
+      // Check if user is admin (owner of the contract)
+      try {
+        const owner = await whitelistReadOnly.owner();
+        const isAdmin = address.toLowerCase() === owner.toLowerCase();
+        console.log('Is admin:', isAdmin, 'Contract owner:', owner);
+        setIsAdmin(isAdmin);
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        throw new Error('Failed to check admin status: ' + (error instanceof Error ? error.message : String(error)));
+      }
 
       setAccount(address);
       setProvider(provider);
       setSigner(signer);
       setWhitelistContract(whitelist);
       setVotingContract(voting);
-      setIsAdmin(isAdmin);
 
       // Listen for account changes
       instance.on('accountsChanged', (accounts: string[]) => {
@@ -157,7 +164,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     } catch (error) {
       console.error('Error connecting to Web3:', error);
-      // Re-throw the error to be handled by the App component
+      disconnect(); // Clean up state on error
       throw error;
     }
   };
